@@ -1,0 +1,15 @@
+{
+  "name": "Funding Source Watch",
+  "short_description": "Webhook alerts when the funding source changes or falls back to VoidWallet",
+  "tile": "/fswatch/static/image/fswatch.png",
+  "version": "0.1.0",
+  "min_lnbits_version": "1.5.0",
+  "contributors": [
+    {
+      "name": "Djuri Baars",
+      "uri": "https://github.com/dsbaars",
+      "role": "Author"
+    }
+  ],
+  "license": "MIT"
+}

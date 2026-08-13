@@ -1,0 +1,8 @@
+[
+  {
+    "path": "/fswatch/",
+    "name": "PageFswatch",
+    "template": "/fswatch/static/index.vue",
+    "component": "/fswatch/static/index.js"
+  }
+]

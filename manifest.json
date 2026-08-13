@@ -1,0 +1,9 @@
+{
+  "repos": [
+    {
+      "id": "fswatch",
+      "organisation": "dsbaars",
+      "repository": "lnbits-fswatch"
+    }
+  ]
+}
