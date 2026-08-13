@@ -31,9 +31,12 @@ A background task polls every `interval_seconds`:
 3. compares against the previous check and POSTs a webhook when something
    changed.
 
-Running on `VoidWallet` while something else is configured is reported as
-`healthy: false`. The fallback *is* the failure, and there is nothing left
-to probe.
+Arriving on `VoidWallet` is always reported as `healthy: false`, whether LNbits
+fell back at startup or the watchdog switched over at runtime. That distinction
+matters, because the watchdog rewrites `lnbits_backend_wallet_class` to
+VoidWallet as well, so afterwards the runtime and configured backend agree and
+only the transition itself reveals what happened. Deliberately running on
+VoidWallet stays quiet, since there is no transition.
 
 **Backends that are never probed:** `VoidWallet` (nothing to probe),
 `CoreLightningWallet` and `ClicheWallet`. The latter two call blocking code

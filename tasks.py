@@ -49,6 +49,15 @@ async def watch_funding_source() -> None:
                 event_type = None
                 if state.funding_source != last_source:
                     event_type = EVENT_CHANGED
+                    if state.funding_source == "VoidWallet":
+                        # arriving on VoidWallet is a fallback whatever the
+                        # settings say by now: the watchdog rewrites
+                        # lnbits_backend_wallet_class as well, so comparing
+                        # against the configured source is not enough here
+                        state.healthy = False
+                        state.error = state.error or (
+                            "LNbits switched to VoidWallet, payments are disabled"
+                        )
                     # a new funding source starts from a clean health baseline,
                     # so its state is reported as-is and never alerted on twice
                     healthy = state.healthy

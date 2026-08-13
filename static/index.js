@@ -80,6 +80,11 @@ window.PageFswatch = {
         !!this.state.funding_source &&
         this.state.funding_source !== this.state.configured_funding_source
       )
+    },
+    // the watchdog rewrites the configured source too, so running on
+    // VoidWallet is worth warning about even when the two match
+    isVoidWallet() {
+      return this.state.funding_source === 'VoidWallet'
     }
   },
   methods: {

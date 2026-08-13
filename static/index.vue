@@ -28,11 +28,23 @@
             <strong>${ state.funding_source }</strong> while
             <strong>${ state.configured_funding_source }</strong> is configured.
           </q-banner>
+          <q-banner
+            v-else-if="isVoidWallet"
+            class="bg-orange text-white q-mt-md"
+          >
+            <template v-slot:avatar>
+              <q-icon name="warning" />
+            </template>
+            LNbits is running on VoidWallet, so payments are disabled.
+          </q-banner>
 
           <div class="row q-mt-md q-col-gutter-md">
             <div class="col-12 col-sm-4">
               <div class="text-caption text-grey">Running on</div>
-              <q-badge :color="hasFallenBack ? 'red' : 'green'" class="q-mt-xs">
+              <q-badge
+                :color="hasFallenBack || isVoidWallet ? 'red' : 'green'"
+                class="q-mt-xs"
+              >
                 ${ state.funding_source || '...' }
               </q-badge>
             </div>
