@@ -1,6 +1,6 @@
 from lnbits.db import Database
 
-from .models import SETTINGS_ID, StoredWatchSettings, WatchEvent
+from .models import EVENT_HEARTBEAT, SETTINGS_ID, StoredWatchSettings, WatchEvent
 
 db = Database("ext_fswatch")
 
@@ -53,4 +53,22 @@ async def prune_events(keep: int = 500) -> None:
             )
         """,
         {"keep": keep},
+    )
+
+
+async def prune_heartbeats(keep: int = 1) -> None:
+    """
+    Keep only the most recent heartbeats. They are periodic by nature, so
+    without this a keepalive would push the transitions -- the events this
+    extension exists for -- straight out of the log.
+    """
+    await db.execute(
+        """
+            DELETE FROM fswatch.events
+            WHERE event_type = :event_type AND id NOT IN (
+                SELECT id FROM fswatch.events WHERE event_type = :event_type
+                ORDER BY created_at DESC LIMIT :keep
+            )
+        """,
+        {"event_type": EVENT_HEARTBEAT, "keep": keep},
     )

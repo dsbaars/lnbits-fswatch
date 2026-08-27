@@ -31,3 +31,16 @@ async def m001_initial(db):
             created_at TIMESTAMP NOT NULL DEFAULT {db.timestamp_now}
         );
     """)
+
+
+async def m002_heartbeat(db):
+    """
+    Optional keepalive interval, so a receiver can tell a healthy funding
+    source apart from a watcher that is no longer running. 0 keeps the
+    transition-only behaviour this extension shipped with.
+    """
+
+    await db.execute("""
+        ALTER TABLE fswatch.settings
+        ADD COLUMN heartbeat_seconds INTEGER NOT NULL DEFAULT 0
+    """)
