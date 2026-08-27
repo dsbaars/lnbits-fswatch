@@ -121,6 +121,14 @@ was actually read: a probe is allowed 15 seconds, so they are not the same
 moment. `previous_funding_source` is `null` for events that are not transitions
 (`heartbeat`, `test`). `heartbeat_seconds` is `0` when the keepalive is off.
 
+`healthy` is the watcher's verdict, not the raw reading, so it agrees with the
+events it sends. A probe that fails while `failure_threshold` has not been
+reached is deliberately still `healthy: true` — alerting there is exactly what
+the threshold exists to prevent. `error` carries the last observed probe
+failure regardless, so a tolerated blip is still visible: **alert on `healthy`,
+not on `error`**. Before the keepalive existed this could never be observed,
+because a transition only ever fires on a check where the two already agree.
+
 Headers: `X-LNbits-Event`, plus `X-LNbits-Signature: sha256=<hmac>` when a
 secret is set, an HMAC-SHA256 over the raw request body.
 

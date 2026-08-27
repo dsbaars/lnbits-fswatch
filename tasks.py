@@ -152,6 +152,14 @@ async def watch_funding_source() -> None:
                     state, config, last_source, last_healthy, failures, last_dispatch
                 )
 
+                # report the verdict, not the raw read. Below failure_threshold
+                # the watcher deliberately still considers the source healthy,
+                # and a heartbeat is the first event that can go out while the
+                # two disagree -- a transition only ever fires on a poll where
+                # they already agree. `error` is left as observed, so a
+                # tolerated probe failure stays visible to the receiver.
+                state.healthy = healthy
+
                 # commit the new state BEFORE dispatching: a dispatch that
                 # raises must not re-fire the same event on every poll
                 # a heartbeat reports the state, it does not report a
