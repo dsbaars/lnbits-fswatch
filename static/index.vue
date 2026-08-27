@@ -106,8 +106,10 @@
                   </q-badge>
                 </q-td>
                 <q-td key="funding_source" :props="props">
-                  ${ props.row.previous_funding_source || '?' } &rarr; ${
-                  props.row.funding_source }
+                  <span v-if="props.row.previous_funding_source">
+                    ${ props.row.previous_funding_source } &rarr;
+                  </span>
+                  ${ props.row.funding_source }
                 </q-td>
                 <q-td key="webhook_status" :props="props">
                   ${ props.row.webhook_status }
@@ -152,6 +154,17 @@
               min="10"
               max="3600"
               label="Check interval (seconds)"
+            />
+            <q-input
+              filled
+              dense
+              v-model.number="settings.heartbeat_seconds"
+              type="number"
+              min="0"
+              max="86400"
+              label="Heartbeat interval (seconds)"
+              hint="0 is off. Sends a heartbeat event when nothing changed, so
+                a receiver can tell a healthy backend from a stopped watcher."
             />
             <q-toggle
               v-model="settings.probe_status"

@@ -19,10 +19,12 @@ from .crud import (
     create_settings,
     get_settings,
     prune_events,
+    prune_heartbeats,
     update_event,
 )
 from .crud import update_settings as update_stored_settings
 from .models import (
+    EVENT_HEARTBEAT,
     SETTINGS_ID,
     FundingSourceState,
     StoredWatchSettings,
@@ -127,7 +129,9 @@ async def dispatch_event(
         error=state.error,
         balance_msat=state.balance_msat,
     )
-    logger.warning(
+    # a heartbeat is periodic by design, so it is not worth a warning per beat
+    log = logger.debug if event_type == EVENT_HEARTBEAT else logger.warning
+    log(
         f"fswatch: {event_type} "
         f"({previous_funding_source} -> {state.funding_source}, "
         f"healthy: {state.healthy})"
@@ -138,13 +142,20 @@ async def dispatch_event(
     # on every single poll
     await create_event(event)
     await prune_events()
+    if event_type == EVENT_HEARTBEAT:
+        await prune_heartbeats()
 
     if config.webhook_url:
-        event.webhook_status = await _post_webhook(config, _payload(event))
+        event.webhook_status = await _post_webhook(
+            config, _payload(event, state, config)
+        )
     else:
         event.webhook_status = "no webhook url"
 
-    if config.notify_admin:
+    # heartbeats are deliberately kept out of Telegram / Nostr / email: a
+    # keepalive is for a receiver that can reason about staleness, not for a
+    # human inbox
+    if config.notify_admin and event_type != EVENT_HEARTBEAT:
         try:
             await send_admin_notification(_notification_text(event), event_type)
         except Exception as exc:
@@ -158,10 +169,15 @@ async def dispatch_event(
     return event
 
 
-def _payload(event: WatchEvent) -> dict:
+def _payload(
+    event: WatchEvent, state: FundingSourceState, config: StoredWatchSettings
+) -> dict:
     return {
         "event": event.event_type,
         "timestamp": int(time()),
+        # when the funding source was actually read, as opposed to when this
+        # payload was built: a probe may take up to PROBE_TIMEOUT seconds
+        "last_check": state.checked_at.isoformat(),
         "site_title": settings.lnbits_site_title,
         "lnbits_version": settings.version,
         "funding_source": event.funding_source,
@@ -170,6 +186,10 @@ def _payload(event: WatchEvent) -> dict:
         "healthy": event.healthy,
         "error": event.error,
         "balance_msat": event.balance_msat,
+        # the cadence to expect, so a receiver can decide for itself when
+        # silence has stopped meaning "nothing changed"
+        "interval_seconds": config.interval_seconds,
+        "heartbeat_seconds": config.heartbeat_seconds,
     }
 
 

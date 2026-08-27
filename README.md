@@ -56,7 +56,33 @@ instead of accepting it as normal.
 | `funding_source_changed` | the runtime funding source is not what it was on the previous check |
 | `funding_source_unhealthy` | `status()` failed `failure_threshold` times in a row |
 | `funding_source_healthy` | the backend answered again after being unhealthy |
+| `heartbeat` | nothing changed and the keepalive interval elapsed |
 | `test` | you pressed "Test webhook" |
+
+## Heartbeat
+
+The events above are transitions, so silence means "nothing changed" *and*
+"the extension is disabled", "LNbits is down", "an upgrade did not restore the
+extension", "the webhook URL rotated and every delivery 4xxs". A receiver
+cannot tell those apart, which is the failure this extension exists to catch,
+one layer up.
+
+Set **Heartbeat interval** to a non-zero number of seconds and a `heartbeat`
+event goes out whenever that long has passed without any other event. The
+receiver can then treat silence as unverified rather than healthy, and every
+payload carries `heartbeat_seconds` so it can derive the deadline instead of
+having it configured in two places.
+
+It is a separate interval from the check interval, so a 30 second poll does not
+have to mean 2880 webhooks a day. A heartbeat can only be sent on a poll
+boundary, so a heartbeat interval below the check interval just means "every
+poll". `0` disables it and keeps the transition-only behaviour.
+
+Any event resets the timer, since a transition is proof of life too. The
+watcher also beats immediately when it starts or is re-enabled, which is what
+makes a restart visible. Only the most recent heartbeat is kept in the event
+log, so a keepalive cannot push the transitions out of it, and heartbeats are
+never sent to the admin notification channels.
 
 ## Webhook
 
@@ -66,6 +92,7 @@ instead of accepting it as normal.
 {
   "event": "funding_source_changed",
   "timestamp": 1760000000,
+  "last_check": "2025-10-09T08:53:20+00:00",
   "site_title": "LNbits",
   "lnbits_version": "1.5.6",
   "funding_source": "VoidWallet",
@@ -73,9 +100,16 @@ instead of accepting it as normal.
   "configured_funding_source": "LndRestWallet",
   "healthy": true,
   "error": null,
-  "balance_msat": null
+  "balance_msat": null,
+  "interval_seconds": 60,
+  "heartbeat_seconds": 900
 }
 ```
+
+`timestamp` is when the payload was built, `last_check` when the funding source
+was actually read: a probe is allowed 15 seconds, so they are not the same
+moment. `previous_funding_source` is `null` for events that are not transitions
+(`heartbeat`, `test`). `heartbeat_seconds` is `0` when the keepalive is off.
 
 Headers: `X-LNbits-Event`, plus `X-LNbits-Signature: sha256=<hmac>` when a
 secret is set, an HMAC-SHA256 over the raw request body.

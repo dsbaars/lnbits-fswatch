@@ -17,6 +17,7 @@ window.PageFswatch = {
         webhook_url: '',
         webhook_secret: '',
         interval_seconds: 60,
+        heartbeat_seconds: 0,
         probe_status: true,
         failure_threshold: 2,
         notify_admin: false
@@ -60,6 +61,7 @@ window.PageFswatch = {
         {
           event: 'funding_source_changed',
           timestamp: 1760000000,
+          last_check: '2025-10-09T08:53:20+00:00',
           site_title: 'LNbits',
           lnbits_version: '1.5.6',
           funding_source: 'VoidWallet',
@@ -67,7 +69,9 @@ window.PageFswatch = {
           configured_funding_source: 'LndRestWallet',
           healthy: true,
           error: null,
-          balance_msat: null
+          balance_msat: null,
+          interval_seconds: 60,
+          heartbeat_seconds: 900
         },
         null,
         2
@@ -187,6 +191,7 @@ window.PageFswatch = {
     eventColor(eventType) {
       if (eventType === 'funding_source_healthy') return 'green'
       if (eventType === 'test') return 'grey'
+      if (eventType === 'heartbeat') return 'blue-grey'
       return 'red'
     },
     formatDate(value) {

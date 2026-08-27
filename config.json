@@ -2,7 +2,7 @@
   "name": "Funding Source Watch",
   "short_description": "Webhook alerts when the funding source changes or falls back to VoidWallet",
   "tile": "/fswatch/static/image/fswatch.png",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "min_lnbits_version": "1.5.0",
   "contributors": [
     {
