@@ -35,8 +35,15 @@ Arriving on `VoidWallet` is always reported as `healthy: false`, whether LNbits
 fell back at startup or the watchdog switched over at runtime. That distinction
 matters, because the watchdog rewrites `lnbits_backend_wallet_class` to
 VoidWallet as well, so afterwards the runtime and configured backend agree and
-only the transition itself reveals what happened. Deliberately running on
-VoidWallet stays quiet, since there is no transition.
+only the transition itself reveals what happened. It then *stays* unhealthy
+until the funding source changes again: once the transition is behind it, a
+fresh check has nothing left to look at and would otherwise read as perfectly
+healthy while payments are still disabled.
+
+Deliberately running on VoidWallet stays quiet, since there is no transition. A
+watcher that starts up already on VoidWallet with VoidWallet configured cannot
+tell that apart from a watchdog switch that happened before it started, and
+accepts it as the baseline.
 
 **Backends that are never probed:** `VoidWallet` (nothing to probe),
 `CoreLightningWallet` and `ClicheWallet`. The latter two call blocking code
