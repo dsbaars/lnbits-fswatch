@@ -15,6 +15,30 @@ from .models import (
 )
 from .services import dispatch_event, get_watch_settings, read_funding_source_state
 
+VOID_FALLBACK_ERROR = "LNbits switched to VoidWallet, payments are disabled"
+
+
+def _still_on_void_fallback(
+    state: FundingSourceState, last_source: str, arrived_on_void: bool
+) -> bool:
+    """
+    Whether LNbits is on VoidWallet because it *arrived* there, as opposed to
+    being deliberately configured for it.
+
+    Arriving on VoidWallet is a fallback whatever the settings say by now: the
+    watchdog rewrites `lnbits_backend_wallet_class` to VoidWallet as well, so
+    only the transition itself reveals what happened. It stays a fallback until
+    the funding source changes again -- a later check has no transition left to
+    look at and would otherwise read as perfectly healthy.
+
+    A watcher that starts up already on VoidWallet has no transition to go on
+    and cannot tell a fallback from a deliberate choice, so it accepts that as
+    the baseline and stays quiet.
+    """
+    if state.funding_source != "VoidWallet":
+        return False
+    return arrived_on_void or last_source != "VoidWallet"
+
 
 def _health_after_probe(
     state: FundingSourceState,
@@ -58,20 +82,12 @@ def _decide_event(
 ) -> tuple[str | None, bool, int]:
     """
     The event this check should fire, if any, plus the health state to carry
-    into the next one. Rewrites `state` when arriving on VoidWallet, so the
-    caller dispatches what was decided here.
+    into the next one. Expects `state` to already reflect a VoidWallet
+    fallback, which only the caller can recognise.
     """
     healthy, failures = _health_after_probe(state, config, last_healthy, failures)
 
     if state.funding_source != last_source:
-        if state.funding_source == "VoidWallet":
-            # arriving on VoidWallet is a fallback whatever the settings say by
-            # now: the watchdog rewrites lnbits_backend_wallet_class as well,
-            # so comparing against the configured source is not enough here
-            state.healthy = False
-            state.error = state.error or (
-                "LNbits switched to VoidWallet, payments are disabled"
-            )
         # a new funding source starts from a clean health baseline, so its
         # state is reported as-is and never alerted on twice
         failures = 0 if state.healthy else config.failure_threshold
@@ -97,6 +113,7 @@ async def watch_funding_source() -> None:
     last_healthy = True
     failures = 0
     last_dispatch: float | None = None
+    arrived_on_void = False
 
     while settings.lnbits_running:
         interval = 60
@@ -108,12 +125,20 @@ async def watch_funding_source() -> None:
                 # re-baseline when the watcher is switched back on
                 last_source, last_healthy, failures = None, True, 0
                 last_dispatch = None
+                arrived_on_void = False
             else:
                 state = await read_funding_source_state(config.probe_status)
 
                 if last_source is None:
                     last_source = state.configured_funding_source
                     last_healthy = True
+
+                arrived_on_void = _still_on_void_fallback(
+                    state, last_source, arrived_on_void
+                )
+                if arrived_on_void:
+                    state.healthy = False
+                    state.error = state.error or VOID_FALLBACK_ERROR
 
                 event_type, healthy, failures = _decide_event(
                     state, config, last_source, last_healthy, failures, last_dispatch
