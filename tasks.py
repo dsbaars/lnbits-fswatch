@@ -29,8 +29,9 @@ def _still_on_void_fallback(
     look at and would otherwise read as perfectly healthy.
 
     A watcher that starts up already on VoidWallet has no transition to go on
-    and cannot tell a fallback from a deliberate choice, so it accepts that as
-    the baseline and stays quiet.
+    and cannot tell a fallback from a deliberate choice. The caller seeds the
+    latch for that case, so being on VoidWallet is reported as unhealthy from
+    the very first check without alerting on it.
     """
     if state.funding_source != "VoidWallet":
         return False
@@ -64,7 +65,14 @@ async def watch_funding_source() -> None:
 
                 if last_source is None:
                     last_source = state.configured_funding_source
-                    last_healthy = True
+                    # Baselining onto VoidWallet is ambiguous: a deliberate
+                    # VoidWallet install and a watchdog switch this watcher
+                    # arrived too late to witness look identical. Alerting is
+                    # therefore wrong -- but so is claiming health, because
+                    # payments are disabled either way. Start unhealthy AND
+                    # start quiet, by baselining last_healthy to match.
+                    arrived_on_void = state.funding_source == "VoidWallet"
+                    last_healthy = not arrived_on_void
 
                 arrived_on_void = _still_on_void_fallback(
                     state, last_source, arrived_on_void
